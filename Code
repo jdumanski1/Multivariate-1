@@ -1,0 +1,5 @@
+team_stats <- read.csv("path") # team totals 
+read.csv() # opponent totals 
+
+champions <- # mutate datasets into just champions over last 25 years
+points_ratio <- #calculate team points per game dividied by opponent points per game 
