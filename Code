@@ -1,6 +1,11 @@
+#Packages
 library(tidyverse)
+
+#Load in data
 offense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Team Stats Per Game.csv")
 defense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Opponent Stats Per Game.csv")
+
+#Create ratio variables
 offense$ppg_ratio <- offense$pts_per_game / defense$opp_pts_per_game
 offense$fg_ratio <- offense$fga_per_game / defense$opp_fga_per_game
 offense$rb_ratio <- offense$trb_per_game / defense$opp_trb_per_game
@@ -8,8 +13,12 @@ offense$orb_ratio <- offense$orb_per_game / defense$opp_orb_per_game
 offense$as_ratio <- offense$ast_per_game / defense$opp_ast_per_game
 offense$tov_ratio <- offense$tov_per_game / defense$opp_tov_per_game
 offense$ft_ratio <- offense$fta_per_game / defense$opp_fta_per_game
+
+#Keep only seasons since 2000
 offense <- offense %>%
   filter(season > 2000 & season < 2026 & team != "League Average")
+
+#Add champions variable
 offense <- offense %>%
   mutate(
     champion = case_when(
@@ -42,7 +51,51 @@ offense <- offense %>%
     )
   )
 
+#Create champions dataset
 champs <- offense %>%
   filter(champion == T) %>%
   select(ppg_ratio, fg_ratio, rb_ratio, orb_ratio, as_ratio, tov_ratio, ft_ratio)
 champ_means <- as.vector(colMeans(champs))
+
+#Creating plots to check for univariate normality of ratios
+ratio_vars = c("ppg_ratio", "fg_ratio", "rb_ratio", "ft_ratio", "as_ratio", "tov_ratio")
+ratio_labels = c("Points", "Field Goals", "Rebounds", "Free Throws", "Assists", "Turnovers")
+
+plot_normality = function(var, label, data) {
+  qq = ggplot(data, aes(sample = .data[[var]])) +
+    stat_qq(color = "blue", alpha = 0.6) +
+    stat_qq_line(color = "red", linewidth = 0.8) +
+    labs(title = label, x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    theme_minimal(base_size = 11) +
+    theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  
+  hist = ggplot(data, aes(x = .data[[var]])) +
+    geom_histogram(aes(y = after_stat(density)), bins = 30,
+                   fill = "blue", color = "white", alpha = 0.7) +
+    geom_density(color = "red", linewidth = 0.8) +
+    labs(x = "Ratio Value", y = "Density") +
+    theme_minimal(base_size = 11)
+  
+  qq / hist 
+}
+plots = map2(ratio_vars, ratio_labels, plot_normality, data = offense)
+
+wrap_plots(plots, ncol = 3) +
+  plot_annotation(
+    title = "Univariate Normality Checks for Ratio Variables",
+    subtitle = "QQ Plot (top) and Density Histogram (bottom) for each variable",
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40")
+    )
+  )
+
+#Tests for MVN
+mvn(offense, mvn_test = "mardia")
+
+ratios = offense %>%
+  select(ppg_ratio, fg_ratio, rb_ratio, orb_ratio, as_ratio, tov_ratio, ft_ratio)
+
+mvn(ratios, mvn_test = "mardia")
+mvn(ratios, mvn_test = "royston")
+mvn(ratios, mvn_test = "hz")
