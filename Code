@@ -1,7 +1,6 @@
+library(tidyverse)
 offense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Team Stats Per Game.csv")
 defense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Opponent Stats Per Game.csv")
-view(offense)
-view(defense)
 offense$ppg_ratio <- offense$pts_per_game / defense$opp_pts_per_game
 offense$fg_ratio <- offense$fga_per_game / defense$opp_fga_per_game
 offense$rb_ratio <- offense$trb_per_game / defense$opp_trb_per_game
