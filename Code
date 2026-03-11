@@ -99,3 +99,20 @@ ratios = offense %>%
 mvn(ratios, mvn_test = "mardia")
 mvn(ratios, mvn_test = "royston")
 mvn(ratios, mvn_test = "hz")
+
+# Hotelling's T Test
+
+mu_0 <- colMeans(offense[29:35])
+dat <- matrix(c(6,9,10,6,8,3), byrow = T, ncol = 2)
+
+cov_dat <- cov(offense[29:35])
+n <- dim(offense)[1]
+solve(cov_dat) # inverse of covariance matrix
+## n * (xbar - munot)' * S^-1 * )xbar - munot)
+
+test_stat <- n * t(champ_means - mu_0) %*% solve(cov_dat) %*% (champ_means - mu_0)
+p <- 7
+qf(0.1, p, n - p, lower.tail = F)
+(n-1)*p/(n-p) * qf(0.05, p, n-p, lower.tail = F)
+options(digits = 10)
+pf(test_stat, p, n-p, lower.tail = F)
