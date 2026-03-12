@@ -100,6 +100,33 @@ mvn(ratios, mvn_test = "mardia")
 mvn(ratios, mvn_test = "royston")
 mvn(ratios, mvn_test = "hz")
 
+#Attempt to correct for MVN
+vars_to_correct = c("ppg_ratio", "as_ratio", "tov_ratio", "ft_ratio")
+ratios_bc = ratios
+
+for (var in vars_to_correct) {
+  bc = boxcox(ratios[[var]] ~ 1, lambda = seq(-3, 3, 0.01), plotit = FALSE)
+  lambda = bc$x[which.max(bc$y)]
+  ratios_bc[[var]] = (ratios[[var]]^lambda - 1) / lambda
+}
+
+mvn(ratios_bc, mvn_test = "mardia")
+mvn(ratios_bc, mvn_test = "royston")
+mvn(ratios_bc, mvn_test = "hz")
+
+#Replotting
+plots = map2(ratio_vars, ratio_labels, plot_normality, data = ratios_bc)
+
+wrap_plots(plots, ncol = 3) +
+  plot_annotation(
+    title = "Univariate Normality Checks for Ratio Variables",
+    subtitle = "QQ Plot (top) and Density Histogram (bottom) for each variable",
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 11, hjust = 0.5, color = "gray40")
+    )
+  )
+
 # Hotelling's T Test
 
 mu_0 <- colMeans(offense[29:35])
