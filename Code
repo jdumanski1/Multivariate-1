@@ -1,11 +1,12 @@
 #Packages
 library(tidyverse)
 
-#Load in data
+# Reading in data
+
 offense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Team Stats Per Game.csv")
 defense <- read.csv("/Users/jdumanski24/Desktop/Stat 388/Opponent Stats Per Game.csv")
-
-#Create ratio variables
+view(offense)
+view(defense)
 offense$ppg_ratio <- offense$pts_per_game / defense$opp_pts_per_game
 offense$fg_ratio <- offense$fga_per_game / defense$opp_fga_per_game
 offense$rb_ratio <- offense$trb_per_game / defense$opp_trb_per_game
@@ -13,13 +14,9 @@ offense$orb_ratio <- offense$orb_per_game / defense$opp_orb_per_game
 offense$as_ratio <- offense$ast_per_game / defense$opp_ast_per_game
 offense$tov_ratio <- offense$tov_per_game / defense$opp_tov_per_game
 offense$ft_ratio <- offense$fta_per_game / defense$opp_fta_per_game
-
-#Keep only seasons since 2000
-offense <- offense %>%
+defense <- defense %>%
   filter(season > 2000 & season < 2026 & team != "League Average")
-
-#Add champions variable
-offense <- offense %>%
+defense <- defense %>%
   mutate(
     champion = case_when(
       abbreviation %in% c("IND", "OKC") & season == 2025 ~ T, 
@@ -51,13 +48,18 @@ offense <- offense %>%
     )
   )
 
-#Create champions dataset
+# Creating champions and nonchampions datasets
+
 champs <- offense %>%
   filter(champion == T) %>%
   select(ppg_ratio, fg_ratio, rb_ratio, orb_ratio, as_ratio, tov_ratio, ft_ratio)
 champ_means <- as.vector(colMeans(champs))
+nonchamps <- offense %>%
+  filter(champion == F) %>%
+  dplyr::select(ppg_ratio, fg_ratio, rb_ratio, orb_ratio, as_ratio, tov_ratio, ft_ratio)
 
 #Creating plots to check for univariate normality of ratios
+
 ratio_vars = c("ppg_ratio", "fg_ratio", "rb_ratio", "ft_ratio", "as_ratio", "tov_ratio")
 ratio_labels = c("Points", "Field Goals", "Rebounds", "Free Throws", "Assists", "Turnovers")
 
@@ -127,19 +129,78 @@ wrap_plots(plots, ncol = 3) +
     )
   )
 
-# Hotelling's T Test
+#Hotelling's T for difference in ratio variables
 
-mu_0 <- colMeans(offense[29:35])
+mu_0 <- colMeans(nonchamps)
 dat <- matrix(c(6,9,10,6,8,3), byrow = T, ncol = 2)
 
-cov_dat <- cov(offense[29:35])
+cov_dat <- cov(nonchamps)
 n <- dim(offense)[1]
 solve(cov_dat) # inverse of covariance matrix
+spool_cov <- (cov(nonchamps) * (n - 1) + cov(champs) * (49)) / (n + 50 - 2)
 ## n * (xbar - munot)' * S^-1 * )xbar - munot)
 
-test_stat <- n * t(champ_means - mu_0) %*% solve(cov_dat) %*% (champ_means - mu_0)
+test_stat <- ((n*50)/(n+50)) * t(champ_means - mu_0) %*% solve(spool_cov) %*% (champ_means - mu_0)
 p <- 7
-qf(0.1, p, n - p, lower.tail = F)
-(n-1)*p/(n-p) * qf(0.05, p, n-p, lower.tail = F)
-options(digits = 10)
-pf(test_stat, p, n-p, lower.tail = F)
+qf(0.05, p, n + 50 - p - 1, lower.tail = F)
+# convert F to T: (n+50-2)*p/(n+50-p-1) * qf(0.05, p, n-p, lower.tail = F)
+#convert to f: 
+f_stat <- ((50 + 746 - 7 - 1)/ (7 * (50 + 746 - 2))) * test_stat
+pf(f_stat, p, n-p, lower.tail = F)
+
+# Difference in offensive statistics for champs/nonchamps
+
+champs1 <- offense %>%
+  filter(champion == T) %>%
+  dplyr::select(fga_per_game, fta_per_game, trb_per_game, orb_per_game, ast_per_game, tov_per_game, fta_per_game)
+
+champ_means1 <- as.vector(colMeans(champs1))
+
+nonchamps1 <- offense %>%
+  filter(champion == F) %>%
+  dplyr::select(fga_per_game, fta_per_game, trb_per_game, orb_per_game, ast_per_game, tov_per_game, fta_per_game)
+
+mu_0_1 <- colMeans(nonchamps1)
+cov_dat_1 <- cov(champs1)
+n <- dim(champs1)[1]
+p <- dim(champs1)[2]
+test_stat_1 <- n %*% t(mu_0_1) %*% solve(cov_dat_1) %*% mu_0_1
+#convert to f: 
+f_stat <- ((50 + 746 - 7 - 1)/7 * (50 + 746 - 2)) * test_stat
+pf(test_stat_1, 7, n-7, lower.tail = F)
+
+n1 <- dim(offense)[1]
+spool_cov1 <- (cov(nonchamps1) * (n1 - 1) + cov(champs1) * (49)) / (n1 + 50 - 2)
+
+test_stat1 <- ((n1*50)/(n1+50)) * t(champ_means1 - mu_0_1) %*% solve(spool_cov1) %*% (champ_means1 - mu_0_1)
+p <- 7
+qf(0.05, p, n + 50 - p - 1, lower.tail = F)
+# convert F to T: (n+50-2)*p/(n+50-p-1) * qf(0.05, p, n-p, lower.tail = F)
+#convert to f: 
+f_stat1 <- ((50 + 746 - 7 - 1)/ (7 * (50 + 746 - 2))) * test_stat1
+pf(f_stat1, p, n-p, lower.tail = F)
+
+
+### Difference of defense between champs/nonchamps
+
+champs2 <- defense %>%
+  filter(champion == T) %>%
+  dplyr::select(opp_fga_per_game, opp_fta_per_game, opp_trb_per_game, opp_orb_per_game, opp_ast_per_game, opp_tov_per_game, opp_ast_per_game)
+
+champ_means2 <- as.vector(colMeans(champs2))
+
+nonchamps2 <- defense %>%
+  filter(champion == F) %>%
+  dplyr::select(opp_fga_per_game, opp_fta_per_game, opp_trb_per_game, opp_orb_per_game, opp_ast_per_game, opp_tov_per_game, opp_ast_per_game)
+
+mu_0_2 <- colMeans(nonchamps2)
+n1 <- dim(offense)[1]
+spool_cov2 <- (cov(nonchamps2) * (n1 - 1) + cov(champs2) * (49)) / (n1 + 50 - 2)
+
+test_stat2 <- ((n1*50)/(n1+50)) * t(champ_means2 - mu_0_2) %*% solve(spool_cov2) %*% (champ_means2 - mu_0_2)
+p <- 7
+qf(0.05, p, n + 50 - p - 1, lower.tail = F)
+# convert F to T: (n+50-2)*p/(n+50-p-1) * qf(0.05, p, n-p, lower.tail = F)
+#convert to f: 
+f_stat2 <- ((50 + 746 - 7 - 1)/ (7 * (50 + 746 - 2))) * test_stat2
+pf(f_stat2, p, n-p, lower.tail = F)
